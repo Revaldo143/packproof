@@ -10,6 +10,8 @@ and then goes further: its agent doesn't just defend, it **judges**.
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/)
 (Best Use of PayPal + AI). Sandbox only — no real money, no real accounts.
 
+![PackProof Dashboard](assets/dashboard.png)
+
 ## How it works
 
 **Layer 1 — Evidence sealed before the dispute exists.**
