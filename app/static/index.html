@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PackProof — AI Dispute Judge</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand-block">
+    <div class="logo">📦</div>
+    <div>
+      <div class="brand">PackProof</div>
+      <div class="tagline">Every box leaves with a witness.</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="env-label">PayPal Disputes API</span>
+    <span id="modeBadge" class="badge">•</span>
+  </div>
+</header>
+
+<section class="stats" id="stats"></section>
+
+<main>
+  <aside class="col inbox">
+    <div class="panel">
+      <h2>Dispute inbox</h2>
+      <div id="disputeList"></div>
+    </div>
+    <div class="panel">
+      <h2>Repeat-claimant radar</h2>
+      <div id="radar"></div>
+    </div>
+  </aside>
+
+  <section class="col detail">
+    <div id="detailEmpty" class="panel empty">
+      <div class="empty-icon">⚖️</div>
+      <p>Select a dispute to inspect the sealed evidence, run the verdict engine, and act on it.</p>
+    </div>
+
+    <div id="detail" hidden>
+      <div class="panel">
+        <div class="detail-head">
+          <div>
+            <h2 id="dTitle"></h2>
+            <div id="dMeta" class="meta"></div>
+          </div>
+          <span id="dStatus" class="pill status"></span>
+        </div>
+
+        <div class="photos">
+          <figure>
+            <figcaption><span>Sealed pack photo</span><span class="fig-sub">captured at pack time</span></figcaption>
+            <img id="packPhoto" alt="Sealed evidence pack photo">
+            <div id="packMeta" class="phmeta"></div>
+          </figure>
+          <figure>
+            <figcaption><span>Customer claim photo</span><span class="fig-sub">submitted with the dispute</span></figcaption>
+            <img id="claimPhoto" alt="Customer claim photo">
+            <div id="claimMeta" class="phmeta"></div>
+          </figure>
+        </div>
+
+        <div id="visionBox" class="subpanel"></div>
+      </div>
+
+      <div class="panel">
+        <div class="verdict-head">
+          <h2>Verdict engine</h2>
+          <button id="btnEvaluate" class="btn primary">⚖️ Run verdict</button>
+        </div>
+        <div class="verdict-row">
+          <span id="verdictBadge" class="verdict-badge">—</span>
+          <div class="score-wrap">
+            <div class="score-track">
+              <div class="band settle" style="left:0;width:30%"></div>
+              <div class="band escalate" style="left:30%;width:30%"></div>
+              <div class="band defend" style="left:60%;width:40%"></div>
+              <div id="scoreMarker" class="score-marker" hidden></div>
+            </div>
+            <div class="score-labels"><span>SETTLE &lt;30</span><span>ESCALATE 30–59</span><span>DEFEND 60+</span></div>
+          </div>
+          <span id="scoreBadge" class="score-num"></span>
+        </div>
+        <div id="breakdown"></div>
+
+        <div class="actions-row" id="actRow" hidden>
+          <button data-act="defend" class="btn defend">🛡️ Defend — submit evidence</button>
+          <button data-act="settle" class="btn settle">🤝 Settle — send offer</button>
+          <button data-act="escalate" class="btn escalate">👤 Escalate to human</button>
+          <button id="btnAdjudicate" class="btn ghost" hidden>⚡ Adjudicate (sandbox): seller wins</button>
+        </div>
+        <div id="actResult" class="subpanel" hidden></div>
+      </div>
+
+      <div class="panel">
+        <h2>PayPal action log</h2>
+        <div id="actionLog"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>PackProof • PayPal Sandbox • Evidence sealed at pack time, verdicts by arithmetic — no black box.</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

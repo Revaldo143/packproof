@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+packproof.db
+app/media/*.jpg
+.pytest_cache/
