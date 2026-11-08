@@ -266,8 +266,8 @@ main { display: grid; grid-template-columns: 410px 1fr; gap: 22px; padding: 22px
 .sig .sname { font-weight: 700; color: var(--text); }
 .sig .snote { color: var(--dim); }
 .sig .pts { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.pts.pos { color: var(--good); }
-.pts.neg { color: var(--bad); }
+.pts.pos { color: var(--bad); }
+.pts.neg { color: var(--good); }
 
 /* ---------- buttons ---------- */
 .btn {
