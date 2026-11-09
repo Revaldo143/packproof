@@ -154,6 +154,8 @@ def act(dispute_id: str, req: ActRequest) -> dict:
         ctx = db.get_dispute_ctx(conn, dispute_id)
         if ctx is None:
             raise HTTPException(404, "dispute not found")
+        if str(ctx["dispute"].get("status") or "").startswith("RESOLVED"):
+            raise HTTPException(409, "dispute already resolved")
         if ctx["verdict"] is None:
             _evaluate_and_store(conn, dispute_id)
             ctx = db.get_dispute_ctx(conn, dispute_id)
@@ -230,6 +232,8 @@ def adjudicate(dispute_id: str, req: AdjudicateRequest) -> dict:
         if outcome not in ("SELLER", "BUYER"):
             raise HTTPException(400, f"invalid outcome: {req.outcome!r} "
                                  "(expected SELLER or BUYER)")
+        if ctx["dispute"].get("status") != "UNDER_REVIEW":
+            raise HTTPException(409, "adjudicate requires submitted evidence (status UNDER_REVIEW)")
         return client.adjudicate(conn, dispute_id, outcome)
     except PayPalError as e:
         raise HTTPException(502, str(e))
