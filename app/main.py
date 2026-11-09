@@ -223,7 +223,14 @@ class AdjudicateRequest(BaseModel):
 def adjudicate(dispute_id: str, req: AdjudicateRequest) -> dict:
     conn = _conn()
     try:
-        return client.adjudicate(conn, dispute_id, req.outcome.upper())
+        ctx = db.get_dispute_ctx(conn, dispute_id)
+        if ctx is None:
+            raise HTTPException(404, "dispute not found")
+        outcome = req.outcome.strip().upper()
+        if outcome not in ("SELLER", "BUYER"):
+            raise HTTPException(400, f"invalid outcome: {req.outcome!r} "
+                                 "(expected SELLER or BUYER)")
+        return client.adjudicate(conn, dispute_id, outcome)
     except PayPalError as e:
         raise HTTPException(502, str(e))
     finally:
@@ -263,6 +270,10 @@ def all_actions() -> list[dict]:
 def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
+
+# app/media/ is gitignored and only seeded at startup, but the mounts
+# run at import — create it first so a fresh clone can start at all.
+config.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/media", StaticFiles(directory=config.MEDIA_DIR), name="media")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

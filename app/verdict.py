@@ -153,11 +153,15 @@ def _evaluate_inr(ctx: dict) -> VerdictResult:
         result.add("tracking_delivered", 0,
                    "carrier tracking shows DELIVERED: defend with "
                    "PROOF_OF_FULFILLMENT (tracking evidence)")
-    elif tracking in ("lost", "in_transit"):
+    elif tracking == "lost":
         result.verdict = "SETTLE"
         result.settle_fraction = 1.0
         result.add("tracking_lost", 0,
-                   f"tracking shows {tracking}: the buyer is right -> full refund")
+                   "tracking shows lost: the buyer is right -> full refund")
+    elif tracking == "in_transit":
+        result.add("tracking_in_transit", 0,
+                   "tracking shows in_transit: the item may still arrive -> "
+                   "escalate; never auto-refund in full")
     else:
         result.add("tracking_unknown", 0,
                    f"tracking status '{tracking}' is not decisive -> escalate")

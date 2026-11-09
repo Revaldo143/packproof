@@ -94,6 +94,9 @@ class SimClient(BaseClient):
 
     def adjudicate(self, conn, dispute_id: str, outcome: str) -> dict:
         # Sandbox-only endpoint: simulates PayPal settling the case.
+        if outcome not in ("SELLER", "BUYER"):
+            raise ValueError(f"invalid adjudication outcome: {outcome!r} "
+                             "(expected SELLER or BUYER)")
         status = "RESOLVED_SELLER" if outcome == "SELLER" else "RESOLVED_BUYER"
         detail = {
             "endpoint": f"POST /v1/customer/disputes/{dispute_id}/adjudicate",
