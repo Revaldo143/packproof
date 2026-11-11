@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import config, db, seed, verdict as verdict_mod, vision
-from .paypal_client import PayPalError, get_client, now_iso
+from .paypal_client import EvidenceFileError, PayPalError, get_client, now_iso
 
 app = FastAPI(title="PackProof", version="1.0.0")
 client = get_client()
@@ -211,6 +211,9 @@ def act(dispute_id: str, req: ActRequest) -> dict:
             return {**result, "offer_amount": amount, "followed_verdict": followed}
 
         raise HTTPException(400, f"unknown action: {action}")
+    except EvidenceFileError as e:
+        # Missing local evidence file: our own bad path, not PayPal.
+        raise HTTPException(404, str(e))
     except PayPalError as e:
         raise HTTPException(502, str(e))
     finally:

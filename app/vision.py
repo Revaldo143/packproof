@@ -158,7 +158,25 @@ def analyze(pack_photo: str | Path, claim_photo: str | Path) -> VisionReport:
         else:
             severity = "cosmetic"
 
-    confidence = 0.9 if item_match or cdist > 120 else 0.75
+    # Confidence is how decisive the item-match evidence is. The match
+    # call hinges on cdist < 90: far from that threshold the call is
+    # clear. Near it (60..120) the colour alone cannot decide — but if
+    # the two photos are structurally different items (average-hash
+    # distance > 10; measured 0 for the same outline, 11+ for a
+    # different one), the shape settles it and confidence stays high.
+    # Only when the colour is borderline AND nothing structural
+    # disambiguates is the report honest about not knowing: 0.5 is
+    # below MIN_CONFIDENCE (0.6), so the verdict engine escalates
+    # instead of guessing.
+    colour_ambiguous = 60 <= cdist <= 120
+    same_structure = hash_dist <= 10
+    confidence = 0.5 if (colour_ambiguous and same_structure) else 0.9
+    if confidence < 0.6:
+        notes.append(
+            f"item colour distance {cdist:.0f} is near the match threshold "
+            f"(90) and the photos share the same structure (hash distance "
+            f"{hash_dist}) -> match call is not decisive, confidence 0.50"
+        )
     return VisionReport(
         item_match=item_match,
         damage_present=damage_present,

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 import requests
 
@@ -30,6 +31,13 @@ def now_iso() -> str:
 
 
 class PayPalError(RuntimeError):
+    pass
+
+
+# A local evidence file is missing/unreadable. This is a client error
+# (our own evidence path is wrong), not a PayPal failure, so callers
+# must map it to 4xx -- never to a 500 or a 502.
+class EvidenceFileError(FileNotFoundError):
     pass
 
 
@@ -117,6 +125,13 @@ class LiveClient(BaseClient):
     def __init__(self) -> None:
         self._token: str | None = None
 
+    def _set_status(self, conn, dispute_id: str, status: str) -> None:
+        # Same as SimClient: every PayPal action persists the dispute's
+        # new lifecycle status to the local DB, so the dashboard, the
+        # radar and the RESOLVED guards see the same state PayPal has.
+        conn.execute("UPDATE disputes SET status = ? WHERE id = ?", (status, dispute_id))
+        conn.commit()
+
     def _auth(self) -> str:
         if self._token:
             return self._token
@@ -146,6 +161,12 @@ class LiveClient(BaseClient):
         }
         files: dict = {"input": (None, json.dumps(input_part), "application/json")}
         for i, path in enumerate(evidence.get("file_paths", []), start=1):
+            # Fail fast, before any HTTP call: a missing local file is
+            # our error (4xx), not PayPal's, and never a 500.
+            if not Path(path).is_file():
+                raise EvidenceFileError(
+                    f"evidence file not found: {path} "
+                    f"(dispute {dispute_id})")
             files[f"file{i}"] = (path.split("/")[-1], open(path, "rb"), "image/jpeg")
         resp = requests.post(
             f"{config.PAYPAL_BASE}/v1/customer/disputes/{dispute_id}/provide-evidence",
@@ -158,6 +179,7 @@ class LiveClient(BaseClient):
         detail = {"endpoint": f"POST /v1/customer/disputes/{dispute_id}/provide-evidence",
                   "evidence_type": input_part["evidences"][0]["evidence_type"],
                   "paypal_response_status": resp.status_code}
+        self._set_status(conn, dispute_id, "UNDER_REVIEW")
         db.log_action(conn, dispute_id, "provide_evidence", self.mode, detail, now_iso())
         return {"status": "UNDER_REVIEW", **detail}
 
@@ -172,6 +194,7 @@ class LiveClient(BaseClient):
         detail = {"endpoint": f"POST /v1/customer/disputes/{dispute_id}/make-offer",
                   "offer_amount": body["offer_amount"],
                   "paypal_response_status": resp.status_code}
+        self._set_status(conn, dispute_id, "OFFER_SENT")
         db.log_action(conn, dispute_id, "make_offer", self.mode, detail, now_iso())
         return {"status": "OFFER_SENT", **detail}
 
@@ -187,6 +210,7 @@ class LiveClient(BaseClient):
         detail = {"endpoint": f"POST /v1/customer/disputes/{dispute_id}/accept-claim",
                   "refund_amount": body["refund_amount"],
                   "paypal_response_status": resp.status_code}
+        self._set_status(conn, dispute_id, "RESOLVED_SETTLED")
         db.log_action(conn, dispute_id, "accept_claim", self.mode, detail, now_iso())
         return {"status": "RESOLVED_SETTLED", **detail}
 
@@ -201,6 +225,8 @@ class LiveClient(BaseClient):
         detail = {"endpoint": f"POST /v1/customer/disputes/{dispute_id}/adjudicate",
                   "adjudication_outcome": outcome, "sandbox_only": True,
                   "paypal_response_status": resp.status_code}
+        self._set_status(conn, dispute_id,
+                         "RESOLVED_SELLER" if outcome == "SELLER" else "RESOLVED_BUYER")
         db.log_action(conn, dispute_id, "adjudicate", self.mode, detail, now_iso())
         return {"status": "ADJUDICATED", **detail}
 

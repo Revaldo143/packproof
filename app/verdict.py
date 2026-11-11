@@ -5,10 +5,12 @@ arithmetic and gates decide. Every point is returned in the breakdown so
 the dashboard (and a judge) can audit the decision.
 
 Step 0  Route by dispute reason (SNAD -> photo path, INR -> tracking path)
-Step 1  Money gate: amount <= $15 -> SETTLE, unless the claim photo is
+Step 1  Hard gates: no sealed pack / no readable claim photo / low
+        vision confidence -> ESCALATE (the agent never guesses). The
+        hard gates run FIRST: a small amount never settles a claim
+        the agent cannot even see evidence for.
+Step 2  Money gate: amount <= $15 -> SETTLE, unless the claim photo is
         reused from another dispute (serial pattern beats the amount)
-Step 2  Hard gates: no sealed pack / no readable claim photo / low
-        vision confidence -> ESCALATE (the agent never guesses)
 Step 3  Fraud score 0..100 from deterministic + vision signals
 Step 4  Bands: >=60 DEFEND, 30..59 ESCALATE (deliberately wide), <30 SETTLE
 """
@@ -55,21 +57,10 @@ def evaluate(ctx: dict, vision: VisionReport | None) -> VerdictResult:
     result = VerdictResult(verdict="ESCALATE", score=None, path="photo")
     reuse = ctx["photo_reuse_count"] > 0
 
-    # ---- Step 1: money gate ------------------------------------------
-    if amount <= MONEY_GATE and not reuse:
-        result.verdict = "SETTLE"
-        frac = SEVERITY_FRACTIONS.get(vision.severity, 0.5) if vision else 0.5
-        result.settle_fraction = frac
-        result.add("money_gate", 0,
-                   f"amount ${amount:.2f} <= ${MONEY_GATE:.0f}: defending costs more "
-                   "than the item is worth -> settle")
-        return result
-    if amount <= MONEY_GATE and reuse:
-        result.add("money_gate_exception", 0,
-                   "small amount, BUT the claim photo is reused from another "
-                   "dispute: serial pattern beats the money gate -> score path")
-
-    # ---- Step 2: hard gates ------------------------------------------
+    # ---- Step 1: hard gates (before the money gate) --------------------
+    # A small amount never settles a claim the agent cannot see
+    # evidence for: no pack / no claim photo / low vision confidence
+    # all escalate first, whatever the amount is.
     if pack is None:
         result.add("no_evidence_pack", 0,
                    "no sealed evidence pack for this order: the agent cannot "
@@ -84,6 +75,20 @@ def evaluate(ctx: dict, vision: VisionReport | None) -> VerdictResult:
                    f"vision confidence {vision.confidence:.2f} < {MIN_CONFIDENCE} "
                    "-> escalate; the agent never guesses")
         return result
+
+    # ---- Step 2: money gate ------------------------------------------
+    if amount <= MONEY_GATE and not reuse:
+        result.verdict = "SETTLE"
+        frac = SEVERITY_FRACTIONS.get(vision.severity, 0.5) if vision else 0.5
+        result.settle_fraction = frac
+        result.add("money_gate", 0,
+                   f"amount ${amount:.2f} <= ${MONEY_GATE:.0f}: defending costs more "
+                   "than the item is worth -> settle")
+        return result
+    if amount <= MONEY_GATE and reuse:
+        result.add("money_gate_exception", 0,
+                   "small amount, BUT the claim photo is reused from another "
+                   "dispute: serial pattern beats the money gate -> score path")
 
     # ---- Step 3: fraud score ------------------------------------------
     score = 0
